@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-mutating
+  namespace: webhook-demo
+  labels:
+    app: webhook-mutating
+    allow: "yes"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-mutating
+  template:
+    metadata:
+      labels:
+        app: webhook-mutating
+    spec:
+      containers:
+      - name: server
+        image: vmalla/mutating-admission-controller:2.0
+        resources:
+          requests:
+            ephemeral-storage: 500Mi
+        ports:
+        - containerPort: 443
+          name: webhook-api
+        volumeMounts:
+        - name: webhook-tls-certs
+          mountPath: /home/vmalla/admission-controller/mutating_controller/ssl_crt
+          readOnly: true
+      volumes:
+      - name: webhook-tls-certs
+        secret:
+          secretName: mutating-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-mutating
+  namespace: webhook-demo
+spec:
+  selector:
+    app: webhook-mutating
+  ports:
+    - port: 443
+      targetPort: webhook-api

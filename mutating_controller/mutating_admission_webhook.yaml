@@ -1,0 +1,24 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook
+  namespace: webhook-demo
+  labels:
+    component: mutating-controller
+webhooks:
+  - name: webhook-mutating.webhook-demo.svc #should be a domain with at least three segments separated by dots
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: webhook-mutating
+        namespace: webhook-demo
+        path: /mutate/deployments
+      caBundle: ${CA_PEM_B64} # a base64 encoded self signed ca cert is needed because all Admission Webhooks need to be on SSL
+    rules:
+      - apiGroups: ["apps"]
+        resources:
+          - "deployments"
+        apiVersions:
+          - "*"
+        operations:
+          - CREATE

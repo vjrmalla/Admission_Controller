@@ -1,0 +1,33 @@
+ docker build -t vmalla/admission-controller:latest .
+  244  docker push vmalla/admission-controller:latest
+  245  ls -lrt
+  246  mkdir ssl_cert
+  247  cd ssl_cert
+  248  ls -lrt
+  # Generate the CA cert and private key
+  249  openssl req -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=Admission Controller Webhook CA"
+  250  ls -lrt
+  # Generate the private key for the webhook server
+  251  openssl genrsa -out server.key 2048
+  252  ls -lrt
+  # Generate a Certificate Signing Request (CSR) for the private key, and sign it with the private key of the CA. The CN is the service name (FQDN) of the webhook application deployment
+
+  253  openssl req -new -key server.key -subj "/CN=webhook-server.webhook-demo.svc" | openssl x509 -req -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt
+  254  ls -lrt
+  255  more server.crt
+
+# Create the `webhook-demo` namespace. This cannot be part of the YAML file as we first need to create the TLS secret,
+# which would fail otherwise.
+kubectl create namespace webhook-demo
+
+# Create the TLS secret for the generated keys.
+
+kubectl -n webhook-demo create secret tls server-tls --cert server.crt --key server.key
+
+
+deploy.sh
+=========
+#!/bin/bash
+ca_pem_b64="$(openssl base64 -A <"ssl_cert/ca.crt")"
+sed -e 's@${CA_PEM_B64}@'"$ca_pem_b64"'@g' <"validating_admission_webhook.yaml" \
+    | kubectl apply -f -
